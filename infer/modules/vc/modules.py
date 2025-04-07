@@ -99,12 +99,15 @@ class VC:
             )
         person = f'{os.getenv("weight_root")}/{sid}'
         logger.info(f"Loading: {person}")
+        print('>>>>>> a')
 
         self.cpt = torch.load(person, map_location="cpu")
         self.tgt_sr = self.cpt["config"][-1]
         self.cpt["config"][-3] = self.cpt["weight"]["emb_g.weight"].shape[0]  # n_spk
         self.if_f0 = self.cpt.get("f0", 1)
         self.version = self.cpt.get("version", "v1")
+
+        print('>>>>>> b')
 
         synthesizer_class = {
             ("v1", 1): SynthesizerTrnMs256NSFsid,
@@ -119,6 +122,8 @@ class VC:
 
         del self.net_g.enc_q
 
+        print('>>>>>> c')
+
         self.net_g.load_state_dict(self.cpt["weight"], strict=False)
         self.net_g.eval().to(self.config.device)
         if self.config.is_half:
@@ -130,6 +135,8 @@ class VC:
         n_spk = self.cpt["config"][-3]
         index = {"value": get_index_path_from_model(sid), "__type__": "update"}
         logger.info("Select index: " + index["value"])
+
+        print('>>>>>> d')
 
         return (
             (
@@ -158,18 +165,22 @@ class VC:
         rms_mix_rate,
         protect,
     ):
+        print('>>>>>> e')
         if input_audio_path is None:
             return "You need to upload an audio", None
         f0_up_key = int(f0_up_key)
         try:
+            print('>>>>>> f')
             audio = load_audio(input_audio_path, 16000)
             audio_max = np.abs(audio).max() / 0.95
             if audio_max > 1:
                 audio /= audio_max
             times = [0, 0, 0]
+            print('>>>>>> g')
 
             if self.hubert_model is None:
                 self.hubert_model = load_hubert(self.config)
+            print('>>>>>> h')
 
             if file_index:
                 file_index = (
@@ -184,7 +195,19 @@ class VC:
                 file_index = file_index2
             else:
                 file_index = ""  # 防止小白写错，自动帮他替换掉
-
+            print('>>>>>> i')
+            print(f">>>>>> Call pipeline with sid={sid}, f0_method={f0_method}, file_index={file_index}")
+            print(f">>>>>> Audio shape: {audio.shape}, max: {np.max(audio):.4f}")
+            print(f">>>>>> f0_file: {f0_file}")
+            print("Hubert loaded:", self.hubert_model is not None)
+            print("Net G:", self.net_g)
+            print("CUDA available:", torch.cuda.is_available())
+            print("CUDA memory allocated:", torch.cuda.memory_allocated() // (1024**2), "MB")
+            print("CUDA memory reserved:", torch.cuda.memory_reserved() // (1024**2), "MB")
+            os.environ["OMP_NUM_THREADS"] = "1"
+            os.environ["MKL_NUM_THREADS"] = "1"
+            os.environ["OPENBLAS_NUM_THREADS"] = "1"
+            os.environ["NUMEXPR_NUM_THREADS"] = "1"
             audio_opt = self.pipeline.pipeline(
                 self.hubert_model,
                 self.net_g,
@@ -205,10 +228,20 @@ class VC:
                 protect,
                 f0_file,
             )
+            print('>>>>>> j')
             if self.tgt_sr != resample_sr >= 16000:
                 tgt_sr = resample_sr
             else:
                 tgt_sr = self.tgt_sr
+            print('>>>>>> k')
+            from pathlib import Path
+
+            output_dir = Path("outputs")
+            output_dir.mkdir(exist_ok=True)
+            output_path = output_dir / "result_hagrid.wav"
+            sf.write(str(output_path), audio_opt, tgt_sr)
+            print(">>>>>>>> : save file success")
+
             index_info = (
                 "Index:\n%s." % file_index
                 if os.path.exists(file_index)

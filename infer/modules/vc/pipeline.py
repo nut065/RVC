@@ -299,6 +299,7 @@ class Pipeline(object):
         protect,
         f0_file=None,
     ):
+        print(">>>>>> in pipeline 1")
         if (
             file_index != ""
             # and file_big_npy != ""
@@ -306,18 +307,23 @@ class Pipeline(object):
             and os.path.exists(file_index)
             and index_rate != 0
         ):
+            print(">>>>>> in pipeline 2")
             try:
                 index = faiss.read_index(file_index)
                 # big_npy = np.load(file_big_npy)
                 big_npy = index.reconstruct_n(0, index.ntotal)
+                print(">>>>>> in pipeline 3")
             except:
                 traceback.print_exc()
                 index = big_npy = None
         else:
+            print(">>>>>> in pipeline 4")
             index = big_npy = None
+        print(">>>>>> in pipeline 5")
         audio = signal.filtfilt(bh, ah, audio)
         audio_pad = np.pad(audio, (self.window // 2, self.window // 2), mode="reflect")
         opt_ts = []
+        print(">>>>>> in pipeline 6")
         if audio_pad.shape[0] > self.t_max:
             audio_sum = np.zeros_like(audio)
             for i in range(self.window):
@@ -331,6 +337,7 @@ class Pipeline(object):
                         == audio_sum[t - self.t_query : t + self.t_query].min()
                     )[0][0]
                 )
+        print(">>>>>> in pipeline 7")
         s = 0
         audio_opt = []
         t = None
@@ -338,6 +345,7 @@ class Pipeline(object):
         audio_pad = np.pad(audio, (self.t_pad, self.t_pad), mode="reflect")
         p_len = audio_pad.shape[0] // self.window
         inp_f0 = None
+        print(">>>>>> in pipeline 8")
         if hasattr(f0_file, "name"):
             try:
                 with open(f0_file.name, "r") as f:
@@ -350,6 +358,7 @@ class Pipeline(object):
                 traceback.print_exc()
         sid = torch.tensor(sid, device=self.device).unsqueeze(0).long()
         pitch, pitchf = None, None
+        print(">>>>>> in pipeline 9")
         if if_f0 == 1:
             pitch, pitchf = self.get_f0(
                 input_audio_path,
@@ -368,6 +377,7 @@ class Pipeline(object):
             pitchf = torch.tensor(pitchf, device=self.device).unsqueeze(0).float()
         t2 = ttime()
         times[1] += t2 - t1
+        print(">>>>>> in pipeline 10")
         for t in opt_ts:
             t = t // self.window * self.window
             if if_f0 == 1:
@@ -405,6 +415,7 @@ class Pipeline(object):
                     )[self.t_pad_tgt : -self.t_pad_tgt]
                 )
             s = t
+        print(">>>>>> in pipeline 11")
         if if_f0 == 1:
             audio_opt.append(
                 self.vc(
@@ -440,6 +451,7 @@ class Pipeline(object):
                 )[self.t_pad_tgt : -self.t_pad_tgt]
             )
         audio_opt = np.concatenate(audio_opt)
+        print(">>>>>> in pipeline 12")
         if rms_mix_rate != 1:
             audio_opt = change_rms(audio, 16000, audio_opt, tgt_sr, rms_mix_rate)
         if tgt_sr != resample_sr >= 16000:
@@ -448,10 +460,13 @@ class Pipeline(object):
             )
         audio_max = np.abs(audio_opt).max() / 0.99
         max_int16 = 32768
+        print(">>>>>> in pipeline 13")
         if audio_max > 1:
             max_int16 /= audio_max
         audio_opt = (audio_opt * max_int16).astype(np.int16)
         del pitch, pitchf, sid
+        print(">>>>>> in pipeline 14")
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
+        print(">>>>>> in pipeline 15")
         return audio_opt
